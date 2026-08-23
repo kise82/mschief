@@ -1,7 +1,8 @@
-use std::{iter::Peekable, str::Chars};
+use std::{iter::Peekable, str::CharIndices};
 
 pub struct Lexer<'a> {
-    input: Peekable<Chars<'a>>,
+    input: &'a str,
+    iter: Peekable<CharIndices<'a>>,
 }
 
 #[derive(Debug)]
@@ -35,8 +36,10 @@ pub enum Token {
 
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
-        let input = input.chars().peekable();
-        Self { input }
+        Self {
+            input,
+            iter: input.char_indices().peekable(),
+        }
     }
 }
 
@@ -48,10 +51,10 @@ impl<'a> Iterator for Lexer<'a> {
 
         macro_rules! double_char_token {
             ($if:expr, $then:ident, $else:ident) => {
-                if let Some(&next) = self.input.peek()
+                if let Some(&(_, next)) = self.iter.peek()
                     && next == $if
                 {
-                    self.input.next();
+                    self.iter.next();
                     $then
                 } else {
                     $else
@@ -59,8 +62,8 @@ impl<'a> Iterator for Lexer<'a> {
             };
         }
 
-        let c = self.input.find(|&c| !c.is_ascii_whitespace())?;
-        Some(match c {
+        let (_, c) = self.iter.find(|&(_, c)| !c.is_ascii_whitespace())?;
+        let token = match c {
             // Operators
             '+' => Plus,
             '-' => Minus,
@@ -83,6 +86,7 @@ impl<'a> Iterator for Lexer<'a> {
 
             // Rest
             _ => Unknown,
-        })
+        };
+        Some(token)
     }
 }
