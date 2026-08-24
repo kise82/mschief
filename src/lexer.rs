@@ -1,4 +1,4 @@
-use std::{iter::Peekable, str::CharIndices};
+use std::{iter::Peekable, num::IntErrorKind, str::CharIndices};
 
 pub struct Lexer<'a> {
     input: &'a str,
@@ -8,6 +8,9 @@ pub struct Lexer<'a> {
 #[derive(Debug)]
 pub enum Token {
     Unknown,
+
+    // Literals
+    Integer(i64),
 
     // Operators
     Plus,
@@ -32,6 +35,15 @@ pub enum Token {
     RBrace,
     LBracket,
     RBracket,
+
+    // Error
+    Error(LexError),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum LexError {
+    Invalid,
+    IntOverflow,
 }
 
 impl<'a> Lexer<'a> {
@@ -62,8 +74,34 @@ impl<'a> Iterator for Lexer<'a> {
             };
         }
 
-        let (_, c) = self.iter.find(|&(_, c)| !c.is_ascii_whitespace())?;
+        let (i, c) = self.iter.find(|&(_, c)| !c.is_ascii_whitespace())?;
         let token = match c {
+            // Literals
+            '0'..='9' => {
+                let mut end = i + c.len_utf8();
+                while let Some(&(j, next)) = self.iter.peek() {
+                    if next.is_ascii_digit() {
+                        self.iter.next();
+                    } else {
+                        end = j;
+                        break;
+                    }
+                }
+
+                self.input[i..end].parse::<i64>().map_or_else(
+                    |err| {
+                        let kind = match err.kind() {
+                            IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
+                                LexError::IntOverflow
+                            }
+                            _ => LexError::Invalid,
+                        };
+                        Error(kind)
+                    },
+                    Integer,
+                )
+            }
+
             // Operators
             '+' => Plus,
             '-' => Minus,
