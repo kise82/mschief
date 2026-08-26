@@ -77,16 +77,16 @@ impl<'a> Iterator for Lexer<'a> {
         let (i, c) = self.iter.find(|&(_, c)| !c.is_ascii_whitespace())?;
         let token = match c {
             // Literals
-            '0'..='9' => utils::parse_int((i, c), self.input, &mut self.iter),
+            '0'..='9' => utils::parse_int((i, i + c.len_utf8()), self.input, &mut self.iter),
 
             // Operators
             '+' => Plus,
             '-' => {
-                if let Some(&(_, next)) = self.iter.peek()
+                if let Some(&(j, next)) = self.iter.peek()
                     && next.is_ascii_digit()
                 {
                     self.iter.next();
-                    utils::parse_int((i, next), self.input, &mut self.iter)
+                    utils::parse_int((i, j + next.len_utf8()), self.input, &mut self.iter)
                 } else {
                     Minus
                 }
@@ -120,11 +120,12 @@ mod utils {
     use std::{iter::Peekable, num::IntErrorKind, str::CharIndices};
 
     pub fn parse_int<'a>(
-        start: (usize, char),
+        initial_bounds: (usize, usize),
         input: &'a str,
         iter: &mut Peekable<CharIndices<'a>>,
     ) -> Token {
-        let mut end = start.0 + start.1.len_utf8();
+        let start = initial_bounds.0;
+        let mut end = initial_bounds.1;
         while let Some(&(j, next)) = iter.peek() {
             if next.is_ascii_digit() {
                 iter.next();
@@ -134,7 +135,7 @@ mod utils {
             }
         }
 
-        input[start.0..end].parse::<i64>().map_or_else(
+        input[start..end].parse::<i64>().map_or_else(
             |err| {
                 let kind = match err.kind() {
                     IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => LexError::IntOverflow,
