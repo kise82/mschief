@@ -6,12 +6,17 @@ pub struct Lexer<'a> {
 }
 
 #[derive(Debug)]
-pub enum Token {
+pub enum Token<'a> {
     Unknown,
+
+    // Identifiers
+    Ident(&'a str),
 
     // Literals
     Integer(i64),
     Float(f64),
+    True,
+    False,
 
     // Operators
     Plus,
@@ -57,7 +62,7 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Token;
+    type Item = Token<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         use Token::*;
@@ -77,6 +82,25 @@ impl<'a> Iterator for Lexer<'a> {
 
         let (i, c) = self.iter.find(|&(_, c)| !c.is_ascii_whitespace())?;
         let token = match c {
+            // Identifiers
+            'A'..='Z' | 'a'..='z' => {
+                let mut end = i + c.len_utf8();
+                while let Some(&(j, next)) = self.iter.peek() {
+                    if next.is_ascii_alphanumeric() {
+                        self.iter.next();
+                    } else {
+                        end = j;
+                        break;
+                    }
+                }
+
+                match &self.input[i..end] {
+                    "true" => True,
+                    "false" => False,
+                    ident => Ident(ident),
+                }
+            }
+
             // Literals
             '0'..='9' => utils::parse_int_or_float((i, i + c.len_utf8()), self),
 
@@ -120,7 +144,10 @@ mod utils {
     use super::{LexError, Lexer, Token};
     use std::{mem, num::IntErrorKind};
 
-    pub fn parse_int_or_float(initial_bounds: (usize, usize), lexer: &mut Lexer) -> Token {
+    pub fn parse_int_or_float<'a>(
+        initial_bounds: (usize, usize),
+        lexer: &mut Lexer<'a>,
+    ) -> Token<'a> {
         let iter = &mut lexer.iter;
 
         let start = initial_bounds.0;
