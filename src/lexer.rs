@@ -32,10 +32,10 @@ pub enum Token {
     Semicolon,
     LParen,
     RParen,
-    LBrace,
-    RBrace,
-    LBracket,
-    RBracket,
+    LSquare,
+    RSquare,
+    LCurly,
+    RCurly,
 
     // Error
     Error(LexError),
@@ -104,10 +104,10 @@ impl<'a> Iterator for Lexer<'a> {
             ';' => Semicolon,
             '(' => LParen,
             ')' => RParen,
-            '{' => LBrace,
-            '}' => RBrace,
-            '[' => LBracket,
-            ']' => RBracket,
+            '[' => LSquare,
+            ']' => RSquare,
+            '{' => LCurly,
+            '}' => RCurly,
 
             // Rest
             _ => Unknown,
