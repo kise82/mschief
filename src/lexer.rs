@@ -9,14 +9,14 @@ pub struct Lexer<'a> {
 pub enum Token<'a> {
     Unknown,
 
-    // Identifiers
+    // Identifiers & keywords
     Ident(&'a str),
+    True,
+    False,
 
     // Literals
     Integer(i64),
     Float(f64),
-    True,
-    False,
 
     // Operators
     Plus,
@@ -82,7 +82,7 @@ impl<'a> Iterator for Lexer<'a> {
 
         let (i, c) = self.iter.find(|&(_, c)| !c.is_ascii_whitespace())?;
         let token = match c {
-            // Identifiers
+            // Identifiers & keywords
             'A'..='Z' | 'a'..='z' => {
                 let mut end = i + c.len_utf8();
                 while let Some(&(j, next)) = self.iter.peek() {
