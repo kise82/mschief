@@ -42,8 +42,9 @@ pub enum Token<'a> {
     LCurly,
     RCurly,
 
-    // Error
+    // Meta
     Error(LexError),
+    Eof,
 }
 
 #[derive(Debug, PartialEq)]
@@ -59,12 +60,8 @@ impl<'a> Lexer<'a> {
             iter: input.char_indices().peekable(),
         }
     }
-}
 
-impl<'a> Iterator for Lexer<'a> {
-    type Item = Token<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    pub fn next_token(&mut self) -> Token<'a> {
         use Token::*;
 
         macro_rules! double_char_token {
@@ -80,17 +77,8 @@ impl<'a> Iterator for Lexer<'a> {
             };
         }
 
-        // Skip whitespaces and comments
-        let (i, c) = loop {
-            let (i, c) = self.iter.find(|&(_, c)| !c.is_ascii_whitespace())?;
-
-            if c == '/'
-                && let Some(&(_, '/')) = self.iter.peek()
-            {
-                let _ = self.iter.find(|&(_, c)| c == '\n');
-            } else {
-                break (i, c);
-            }
+        let Some((i, c)) = self.skip_whitespaces_and_comments() else {
+            return Eof;
         };
 
         let token = match c {
@@ -148,7 +136,33 @@ impl<'a> Iterator for Lexer<'a> {
             // Rest
             _ => Unknown,
         };
-        Some(token)
+
+        token
+    }
+
+    fn skip_whitespaces_and_comments(&mut self) -> Option<<CharIndices<'_> as Iterator>::Item> {
+        loop {
+            let (i, c) = self.iter.find(|&(_, c)| !c.is_ascii_whitespace())?;
+
+            if c == '/'
+                && let Some(&(_, '/')) = self.iter.peek()
+            {
+                let _ = self.iter.find(|&(_, c)| c == '\n');
+            } else {
+                return Some((i, c));
+            }
+        }
+    }
+}
+
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.next_token() {
+            Token::Eof => None,
+            token => Some(token),
+        }
     }
 }
 
