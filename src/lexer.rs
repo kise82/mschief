@@ -1,4 +1,4 @@
-use std::{iter::Peekable, str::CharIndices};
+use std::{iter::Peekable, mem, str::CharIndices};
 
 pub struct Lexer<'a> {
     input: &'a str,
@@ -81,7 +81,7 @@ impl<'a> Lexer<'a> {
             return Eof;
         };
 
-        let token = match c {
+        match c {
             // Identifiers & keywords
             'A'..='Z' | 'a'..='z' => {
                 let mut end = i + c.len_utf8();
@@ -102,7 +102,7 @@ impl<'a> Lexer<'a> {
             }
 
             // Literals
-            '0'..='9' => utils::parse_int_or_float((i, i + c.len_utf8()), self),
+            '0'..='9' => self.parse_int_or_float(i, i + c.len_utf8()),
 
             // Operators
             '+' => Plus,
@@ -111,7 +111,7 @@ impl<'a> Lexer<'a> {
                     && next.is_ascii_digit()
                 {
                     self.iter.next();
-                    utils::parse_int_or_float((i, j + next.len_utf8()), self)
+                    self.parse_int_or_float(i, j + next.len_utf8())
                 } else {
                     Minus
                 }
@@ -135,10 +135,10 @@ impl<'a> Lexer<'a> {
 
             // Rest
             _ => Unknown,
-        };
-
-        token
+        }
     }
+
+    // Parsing helpers
 
     fn skip_whitespaces_and_comments(&mut self) -> Option<<CharIndices<'_> as Iterator>::Item> {
         loop {
@@ -153,36 +153,16 @@ impl<'a> Lexer<'a> {
             }
         }
     }
-}
 
-impl<'a> Iterator for Lexer<'a> {
-    type Item = Token<'a>;
+    fn parse_int_or_float(&mut self, start: usize, assumed_end: usize) -> Token<'a> {
+        use std::num::IntErrorKind;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.next_token() {
-            Token::Eof => None,
-            token => Some(token),
-        }
-    }
-}
-
-mod utils {
-    use super::{LexError, Lexer, Token};
-    use std::{mem, num::IntErrorKind};
-
-    pub fn parse_int_or_float<'a>(
-        initial_bounds: (usize, usize),
-        lexer: &mut Lexer<'a>,
-    ) -> Token<'a> {
-        let iter = &mut lexer.iter;
-
-        let start = initial_bounds.0;
-        let mut end = initial_bounds.1;
+        let mut end = assumed_end;
 
         let mut next = '\0';
-        while let Some(&(j, c)) = iter.peek() {
+        while let Some(&(j, c)) = self.iter.peek() {
             if c.is_ascii_digit() {
-                iter.next();
+                self.iter.next();
             } else {
                 next = c;
                 end = j;
@@ -191,7 +171,7 @@ mod utils {
         }
 
         if next == '.' {
-            let mut alt_iter = iter.clone();
+            let mut alt_iter = self.iter.clone();
             alt_iter.next();
 
             let mut new_end = end;
@@ -206,14 +186,14 @@ mod utils {
 
             if new_end - end > 1 {
                 end = new_end;
-                let _ = mem::replace(&mut lexer.iter, alt_iter);
-                return lexer.input[start..end]
+                let _ = mem::replace(&mut self.iter, alt_iter);
+                return self.input[start..end]
                     .parse::<f64>()
                     .map_or_else(|_| Token::Error(LexError::Invalid), Token::Float);
             }
         }
 
-        lexer.input[start..end].parse::<i64>().map_or_else(
+        self.input[start..end].parse::<i64>().map_or_else(
             |err| {
                 let kind = match err.kind() {
                     IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => LexError::IntOverflow,
@@ -225,3 +205,16 @@ mod utils {
         )
     }
 }
+
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.next_token() {
+            Token::Eof => None,
+            token => Some(token),
+        }
+    }
+}
+
+mod utils {}
