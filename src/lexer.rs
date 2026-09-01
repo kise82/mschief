@@ -80,7 +80,19 @@ impl<'a> Iterator for Lexer<'a> {
             };
         }
 
-        let (i, c) = self.iter.find(|&(_, c)| !c.is_ascii_whitespace())?;
+        // Skip whitespaces and comments
+        let (i, c) = loop {
+            let (i, c) = self.iter.find(|&(_, c)| !c.is_ascii_whitespace())?;
+
+            if c == '/'
+                && let Some(&(_, '/')) = self.iter.peek()
+            {
+                let _ = self.iter.find(|&(_, c)| c == '\n');
+            } else {
+                break (i, c);
+            }
+        };
+
         let token = match c {
             // Identifiers & keywords
             'A'..='Z' | 'a'..='z' => {
