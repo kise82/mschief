@@ -66,9 +66,7 @@ impl<'a> Lexer<'a> {
 
         macro_rules! double_char_token {
             ($if:expr, $then:ident, $else:ident) => {
-                if let Some(&(_, next)) = self.iter.peek()
-                    && next == $if
-                {
+                if let Some(&(_, $if)) = self.iter.peek() {
                     self.iter.next();
                     $then
                 } else {
@@ -107,9 +105,7 @@ impl<'a> Lexer<'a> {
             // Operators
             '+' => Plus,
             '-' => {
-                if let Some(&(_, next)) = self.iter.peek()
-                    && next.is_ascii_digit()
-                {
+                if let Some(&(_, '0'..='9')) = self.iter.peek() {
                     self.iter.next();
                     self.parse_int_or_float(i)
                 } else {
