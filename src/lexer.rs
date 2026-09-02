@@ -82,17 +82,11 @@ impl<'a> Lexer<'a> {
         match c {
             // Identifiers & keywords
             'A'..='Z' | 'a'..='z' => {
-                let mut end = i + c.len_utf8();
-                while let Some(&(j, next)) = self.iter.peek() {
-                    if next.is_ascii_alphanumeric() {
-                        self.iter.next();
-                    } else {
-                        end = j;
-                        break;
-                    }
-                }
+                let &(j, _) =
+                    utils::next_while(&mut self.iter, |&(_, c)| c.is_ascii_alphanumeric())
+                        .unwrap_or(&(self.input.len(), '\0'));
 
-                match &self.input[i..end] {
+                match &self.input[i..j] {
                     "true" => True,
                     "false" => False,
                     ident => Ident(ident),
