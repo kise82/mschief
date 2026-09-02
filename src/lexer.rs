@@ -102,16 +102,16 @@ impl<'a> Lexer<'a> {
             }
 
             // Literals
-            '0'..='9' => self.parse_int_or_float(i, i + c.len_utf8()),
+            '0'..='9' => self.parse_int_or_float(i),
 
             // Operators
             '+' => Plus,
             '-' => {
-                if let Some(&(j, next)) = self.iter.peek()
+                if let Some(&(_, next)) = self.iter.peek()
                     && next.is_ascii_digit()
                 {
                     self.iter.next();
-                    self.parse_int_or_float(i, j + next.len_utf8())
+                    self.parse_int_or_float(i)
                 } else {
                     Minus
                 }
@@ -154,46 +154,28 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn parse_int_or_float(&mut self, start: usize, assumed_end: usize) -> Token<'a> {
+    fn parse_int_or_float(&mut self, start: usize) -> Token<'a> {
         use std::num::IntErrorKind;
 
-        let mut end = assumed_end;
+        let &(i, c) = utils::next_while(&mut self.iter, |&(_, c)| c.is_ascii_digit())
+            .unwrap_or(&(self.input.len(), '\0'));
 
-        let mut next = '\0';
-        while let Some(&(j, c)) = self.iter.peek() {
-            if c.is_ascii_digit() {
-                self.iter.next();
-            } else {
-                next = c;
-                end = j;
-                break;
-            }
-        }
-
-        if next == '.' {
+        if c == '.' {
             let mut alt_iter = self.iter.clone();
             alt_iter.next();
 
-            let mut new_end = end;
-            while let Some(&(j, c)) = alt_iter.peek() {
-                if c.is_ascii_digit() {
-                    alt_iter.next();
-                } else {
-                    new_end = j;
-                    break;
-                }
-            }
+            let &(j, _) = utils::next_while(&mut alt_iter, |&(_, c)| c.is_ascii_digit())
+                .unwrap_or(&(self.input.len(), '\0'));
 
-            if new_end - end > 1 {
-                end = new_end;
+            if j - i > 1 {
                 let _ = mem::replace(&mut self.iter, alt_iter);
-                return self.input[start..end]
+                return self.input[start..j]
                     .parse::<f64>()
                     .map_or_else(|_| Token::Error(LexError::Invalid), Token::Float);
             }
         }
 
-        self.input[start..end].parse::<i64>().map_or_else(
+        self.input[start..i].parse::<i64>().map_or_else(
             |err| {
                 let kind = match err.kind() {
                     IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => LexError::IntOverflow,
@@ -217,4 +199,14 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
-mod utils {}
+mod utils {
+    use std::iter::Peekable;
+
+    pub fn next_while<I: Iterator>(
+        iter: &mut Peekable<I>,
+        mut predicate: impl FnMut(&I::Item) -> bool,
+    ) -> Option<&I::Item> {
+        while iter.next_if(&mut predicate).is_some() {}
+        iter.peek()
+    }
+}
