@@ -1,6 +1,6 @@
 use std::{iter::Peekable, mem, str::CharIndices};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Token<'a> {
     Unknown,
 
