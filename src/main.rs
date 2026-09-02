@@ -1,4 +1,4 @@
-use mschief::lexer::Lexer;
+use mschief::parser::Parser;
 
 use std::io::{self, BufRead};
 
@@ -9,10 +9,8 @@ fn main() {
     while let Ok(n) = handle.read_line(&mut buffer)
         && n > 0
     {
-        let lexer = Lexer::new(&buffer);
-        for token in lexer {
-            print!("{token:?} ");
-        }
+        let ast = Parser::new(&buffer).parse();
+        println!("{ast:?}");
         buffer.clear();
     }
 }
