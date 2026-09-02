@@ -1,10 +1,5 @@
 use std::{iter::Peekable, mem, str::CharIndices};
 
-pub struct Lexer<'a> {
-    input: &'a str,
-    iter: Peekable<CharIndices<'a>>,
-}
-
 #[derive(Debug)]
 pub enum Token<'a> {
     Unknown,
@@ -53,6 +48,11 @@ pub enum LexError {
     IntOverflow,
 }
 
+pub struct Lexer<'a> {
+    input: &'a str,
+    iter: Peekable<CharIndices<'a>>,
+}
+
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
         Self {
@@ -60,6 +60,8 @@ impl<'a> Lexer<'a> {
             iter: input.char_indices().peekable(),
         }
     }
+
+    // Lexing
 
     pub fn next_token(&mut self) -> Token<'a> {
         use Token::*;
@@ -130,6 +132,7 @@ impl<'a> Lexer<'a> {
 
     // Parsing helpers
 
+    #[inline(always)]
     fn skip_whitespaces_and_comments(&mut self) -> Option<<CharIndices<'_> as Iterator>::Item> {
         loop {
             let (i, c) = self.iter.find(|&(_, c)| !c.is_ascii_whitespace())?;
@@ -144,6 +147,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    #[inline(always)]
     fn parse_int_or_float(&mut self, start: usize) -> Token<'a> {
         use std::num::IntErrorKind;
 
@@ -192,6 +196,7 @@ impl<'a> Iterator for Lexer<'a> {
 mod utils {
     use std::iter::Peekable;
 
+    #[inline(always)]
     pub fn next_while<I: Iterator>(
         iter: &mut Peekable<I>,
         mut predicate: impl FnMut(&I::Item) -> bool,
