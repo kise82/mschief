@@ -55,7 +55,26 @@ impl<'a> Parser<'a> {
 
     #[inline(always)]
     fn expression(&mut self) -> Box<AstNode<'a>> {
-        self.term()
+        self.relational()
+    }
+
+    #[inline(always)]
+    fn relational(&mut self) -> Box<AstNode<'a>> {
+        let mut ret = self.term();
+        if let Some(op) = self.lexer.next_if(|t| {
+            matches!(
+                *t,
+                Token::EqualsEquals
+                    | Token::BangEquals
+                    | Token::Less
+                    | Token::LessEquals
+                    | Token::Greater
+                    | Token::GreaterEquals
+            )
+        }) {
+            ret = AstNode::new_binary(op, ret, self.term());
+        }
+        ret
     }
 
     #[inline(always)]
@@ -86,7 +105,10 @@ impl<'a> Parser<'a> {
     fn atom(&mut self) -> Box<AstNode<'a>> {
         if let Some(token) = self.lexer.next() {
             match token {
-                value @ Token::Integer(_) | value @ Token::Float(_) => AstNode::new_literal(value),
+                value @ Token::Integer(_)
+                | value @ Token::Float(_)
+                | value @ Token::True
+                | value @ Token::False => AstNode::new_literal(value),
                 Token::LParen => {
                     let inner = self.expression();
                     if self.lexer.next_if(|t| *t == Token::RParen).is_some() {
