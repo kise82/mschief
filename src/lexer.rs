@@ -26,6 +26,8 @@ pub enum Token<'a> {
     EqualsEquals,
     Greater,
     GreaterEquals,
+    AmpAmp,
+    PipePipe,
 
     // Markers
     Comma,
@@ -114,6 +116,8 @@ impl<'a> Lexer<'a> {
             '!' => double_char_token!('=', BangEquals, Bang),
             '=' => double_char_token!('=', EqualsEquals, Equals),
             '>' => double_char_token!('=', GreaterEquals, Greater),
+            '&' if self.iter.next_if(|&(_, c)| c == '&').is_some() => AmpAmp,
+            '|' if self.iter.next_if(|&(_, c)| c == '|').is_some() => PipePipe,
 
             // Markers
             ',' => Comma,
