@@ -141,12 +141,14 @@ impl<'a> Lexer<'a> {
         loop {
             let (i, c) = self.iter.find(|&(_, c)| !c.is_ascii_whitespace())?;
 
-            if c == '/'
-                && let Some(&(_, '/')) = self.iter.peek()
-            {
-                let _ = self.iter.find(|&(_, c)| c == '\n');
-            } else {
-                return Some((i, c));
+            match c {
+                '#' => {
+                    let _ = self.iter.find(|&(_, c)| c == '\n');
+                }
+                '/' if self.iter.next_if(|&(_, c)| c == '/').is_some() => {
+                    let _ = self.iter.find(|&(_, c)| c == '\n');
+                }
+                _ => return Some((i, c)),
             }
         }
     }
