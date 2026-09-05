@@ -55,7 +55,25 @@ impl<'a> Parser<'a> {
 
     #[inline(always)]
     fn expression(&mut self) -> Box<AstNode<'a>> {
-        self.relational()
+        self.logical_disjunction()
+    }
+
+    #[inline(always)]
+    fn logical_disjunction(&mut self) -> Box<AstNode<'a>> {
+        let mut ret = self.logical_conjunction();
+        while self.lexer.next_if(|t| *t == Token::PipePipe).is_some() {
+            ret = AstNode::new_binary(Token::PipePipe, ret, self.logical_conjunction());
+        }
+        ret
+    }
+
+    #[inline(always)]
+    fn logical_conjunction(&mut self) -> Box<AstNode<'a>> {
+        let mut ret = self.relational();
+        while self.lexer.next_if(|t| *t == Token::AmpAmp).is_some() {
+            ret = AstNode::new_binary(Token::AmpAmp, ret, self.relational());
+        }
+        ret
     }
 
     #[inline(always)]
