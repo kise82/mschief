@@ -20,6 +20,8 @@ pub enum Token<'a> {
     Minus,
     Star,
     Slash,
+    Dot,
+    DotEquals,
     Less,
     LessEquals,
     Bang,
@@ -107,6 +109,7 @@ impl<'a> Lexer<'a> {
             }
             '*' => Star,
             '/' => Slash,
+            '.' => double_char_token!('=', DotEquals, Dot),
             '<' => double_char_token!('=', LessEquals, Less),
             '!' => double_char_token!('=', BangEquals, Bang),
             '=' => double_char_token!('=', EqualsEquals, Equals),
