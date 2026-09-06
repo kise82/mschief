@@ -17,17 +17,21 @@ pub enum Token<'a> {
 
     // Operators
     Plus,
+    PlusEquals,
     Minus,
+    MinusEquals,
     Star,
+    StarEquals,
     Slash,
+    SlashEquals,
     Dot,
     DotEquals,
-    Less,
-    LessEquals,
-    Bang,
-    BangEquals,
     Equals,
     EqualsEquals,
+    Bang,
+    BangEquals,
+    Less,
+    LessEquals,
     Greater,
     GreaterEquals,
     AmpAmp,
@@ -98,21 +102,20 @@ impl<'a> Lexer<'a> {
             '0'..='9' => self.parse_int_or_float(i),
 
             // Operators
-            '+' => Plus,
-            '-' => {
-                if let Some(&(_, '0'..='9')) = self.iter.peek() {
-                    self.iter.next();
+            '+' => double_char_token!('=', PlusEquals, Plus),
+            '-' => match self.iter.next_if(|&(_, c)| c == '=') {
+                Some(_) => MinusEquals,
+                None if self.iter.next_if(|&(_, c)| c.is_ascii_digit()).is_some() => {
                     self.parse_int_or_float(i)
-                } else {
-                    Minus
                 }
-            }
-            '*' => Star,
-            '/' => Slash,
+                None => Minus,
+            },
+            '*' => double_char_token!('=', StarEquals, Star),
+            '/' => double_char_token!('=', SlashEquals, Slash),
             '.' => double_char_token!('=', DotEquals, Dot),
-            '<' => double_char_token!('=', LessEquals, Less),
-            '!' => double_char_token!('=', BangEquals, Bang),
             '=' => double_char_token!('=', EqualsEquals, Equals),
+            '!' => double_char_token!('=', BangEquals, Bang),
+            '<' => double_char_token!('=', LessEquals, Less),
             '>' => double_char_token!('=', GreaterEquals, Greater),
             '&' if self.iter.next_if(|&(_, c)| c == '&').is_some() => AmpAmp,
             '|' if self.iter.next_if(|&(_, c)| c == '|').is_some() => PipePipe,
