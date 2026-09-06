@@ -151,15 +151,11 @@ impl<'a> Lexer<'a> {
         let &(j, _) = utils::next_while(&mut self.iter, |&(_, c)| c.is_alphanumeric())
             .unwrap_or(&(self.input.len(), '\0'));
 
-        let slice = &self.input[start..j];
-        if is_var {
-            Token::Var(slice)
-        } else {
-            match slice {
-                "true" => Token::True,
-                "false" => Token::False,
-                _ => Token::Ident(slice),
-            }
+        match &self.input[start..j] {
+            var if is_var => Token::Var(var),
+            "true" => Token::True,
+            "false" => Token::False,
+            ident => Token::Ident(ident),
         }
     }
 
