@@ -70,8 +70,7 @@ impl<'a> Lexer<'a> {
 
         macro_rules! double_char_token {
             ($if:expr, $then:ident, $else:ident) => {
-                if let Some(&(_, $if)) = self.iter.peek() {
-                    self.iter.next();
+                if self.iter.next_if(|&(_, c)| c == $if).is_some() {
                     $then
                 } else {
                     $else
