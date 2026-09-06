@@ -1,8 +1,8 @@
-use std::{iter::Peekable, mem, str::CharIndices};
+use std::{fmt::Debug, iter::Peekable, mem, str::CharIndices};
 
 #[derive(Debug, PartialEq)]
 pub enum Token<'a> {
-    Unknown,
+    Unknown(char),
 
     // Identifiers & keywords
     Var(&'a str),
@@ -123,7 +123,7 @@ impl<'a> Lexer<'a> {
             '}' => RCurly,
 
             // Rest
-            _ => Unknown,
+            _ => Unknown(c),
         }
     }
 
@@ -141,6 +141,12 @@ impl<'a> Lexer<'a> {
                 '/' if self.iter.next_if(|&(_, c)| c == '/').is_some() => {
                     let _ = self.iter.find(|&(_, c)| c == '\n');
                 }
+                '/' if self.iter.next_if(|&(_, c)| c == '*').is_some() => loop {
+                    let (_, _) = self.iter.find(|&(_, c)| c == '*')?;
+                    if self.iter.next_if(|&(_, c)| c == '/').is_some() {
+                        break;
+                    }
+                },
                 _ => return Some((i, c)),
             }
         }
