@@ -5,6 +5,7 @@ pub enum Token<'a> {
     Unknown,
 
     // Identifiers & keywords
+    Var(&'a str),
     Ident(&'a str),
     True,
     False,
@@ -84,17 +85,10 @@ impl<'a> Lexer<'a> {
 
         match c {
             // Identifiers & keywords
-            'A'..='Z' | 'a'..='z' => {
-                let &(j, _) =
-                    utils::next_while(&mut self.iter, |&(_, c)| c.is_ascii_alphanumeric())
-                        .unwrap_or(&(self.input.len(), '\0'));
-
-                match &self.input[i..j] {
-                    "true" => True,
-                    "false" => False,
-                    ident => Ident(ident),
-                }
+            '@' if let Some((i, _)) = self.iter.next_if(|&(_, c)| c.is_alphanumeric()) => {
+                self.parse_var_or_ident(i, true)
             }
+            'A'..='Z' | 'a'..='z' => self.parse_var_or_ident(i, false),
 
             // Literals
             '0'..='9' => self.parse_int_or_float(i),
@@ -148,6 +142,23 @@ impl<'a> Lexer<'a> {
                     let _ = self.iter.find(|&(_, c)| c == '\n');
                 }
                 _ => return Some((i, c)),
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn parse_var_or_ident(&mut self, start: usize, is_var: bool) -> Token<'a> {
+        let &(j, _) = utils::next_while(&mut self.iter, |&(_, c)| c.is_alphanumeric())
+            .unwrap_or(&(self.input.len(), '\0'));
+
+        let slice = &self.input[start..j];
+        if is_var {
+            Token::Var(slice)
+        } else {
+            match slice {
+                "true" => Token::True,
+                "false" => Token::False,
+                _ => Token::Ident(slice),
             }
         }
     }
