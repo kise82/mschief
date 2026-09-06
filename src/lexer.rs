@@ -11,6 +11,7 @@ pub enum Token<'a> {
     False,
 
     // Literals
+    String(&'a str),
     Integer(i64),
     Float(f64),
 
@@ -91,6 +92,7 @@ impl<'a> Lexer<'a> {
             'A'..='Z' | 'a'..='z' => self.parse_var_or_ident(i, false),
 
             // Literals
+            '\'' | '"' => self.parse_string(i + c.len_utf8(), c),
             '0'..='9' => self.parse_int_or_float(i),
 
             // Operators
@@ -162,6 +164,15 @@ impl<'a> Lexer<'a> {
             "true" => Token::True,
             "false" => Token::False,
             ident => Token::Ident(ident),
+        }
+    }
+
+    #[inline(always)]
+    fn parse_string(&mut self, start: usize, delimiter: char) -> Token<'a> {
+        if let Some((end, _)) = self.iter.find(|&(_, c)| c == delimiter) {
+            Token::String(&self.input[start..end])
+        } else {
+            Token::Error(LexError::Invalid)
         }
     }
 
