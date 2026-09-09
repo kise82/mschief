@@ -7,8 +7,16 @@ pub enum Token<'a> {
     // Identifiers & keywords
     Var(&'a str),
     Ident(&'a str),
-    True,
+
+    Break,
+    Continue,
+    Else,
     False,
+    If,
+    Proc,
+    Return,
+    True,
+    While,
 
     // Literals
     String(&'a str),
@@ -166,9 +174,21 @@ impl<'a> Lexer<'a> {
             .unwrap_or(&(self.input.len(), '\0'));
 
         match &self.input[start..j] {
+            // Variables - anything goes
             var if is_var => Token::Var(var),
-            "true" => Token::True,
+
+            // Keywords
+            "break" => Token::Break,
+            "continue" => Token::Continue,
+            "else" => Token::Else,
             "false" => Token::False,
+            "if" => Token::If,
+            "proc" => Token::Proc,
+            "return" => Token::Return,
+            "true" => Token::True,
+            "while" => Token::While,
+
+            // Identifiers - at last
             ident => Token::Ident(ident),
         }
     }
