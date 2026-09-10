@@ -100,10 +100,12 @@ impl<'a> Lexer<'a> {
 
         match c {
             // Identifiers & keywords
-            '@' if let Some((i, _)) = self.iter.next_if(|&(_, c)| c.is_alphanumeric()) => {
+            '@' if let Some((i, _)) =
+                self.iter.next_if(|&(_, c)| c.is_alphanumeric() || c == '_') =>
+            {
                 self.parse_var_or_ident(i, true)
             }
-            'A'..='Z' | 'a'..='z' => self.parse_var_or_ident(i, false),
+            'A'..='Z' | 'a'..='z' | '_' => self.parse_var_or_ident(i, false),
 
             // Literals
             '\'' | '"' => self.parse_string(i + c.len_utf8(), c),
@@ -170,7 +172,7 @@ impl<'a> Lexer<'a> {
 
     #[inline(always)]
     fn parse_var_or_ident(&mut self, start: usize, is_var: bool) -> Token<'a> {
-        let &(j, _) = utils::next_while(&mut self.iter, |&(_, c)| c.is_alphanumeric())
+        let &(j, _) = utils::next_while(&mut self.iter, |&(_, c)| c.is_alphanumeric() || c == '_')
             .unwrap_or(&(self.input.len(), '\0'));
 
         match &self.input[start..j] {
