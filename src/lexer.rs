@@ -20,8 +20,8 @@ pub enum Token<'a> {
 
     // Literals
     String(&'a str),
-    Integer(i64),
-    Float(f64),
+    Integer(&'a str),
+    Float(&'a str),
 
     // Operators
     Plus,
@@ -206,8 +206,6 @@ impl<'a> Lexer<'a> {
 
     #[inline(always)]
     fn parse_int_or_float(&mut self, start: usize) -> Token<'a> {
-        use std::num::IntErrorKind;
-
         let &(i, c) = utils::next_while(&mut self.iter, |&(_, c)| c.is_ascii_digit())
             .unwrap_or(&(self.input.len(), '\0'));
 
@@ -220,22 +218,11 @@ impl<'a> Lexer<'a> {
 
             if j - i > 1 {
                 let _ = mem::replace(&mut self.iter, alt_iter);
-                return self.input[start..j]
-                    .parse::<f64>()
-                    .map_or_else(|_| Token::Error(LexError::Invalid), Token::Float);
+                return Token::Float(&self.input[start..j]);
             }
         }
 
-        self.input[start..i].parse::<i64>().map_or_else(
-            |err| {
-                let kind = match err.kind() {
-                    IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => LexError::IntOverflow,
-                    _ => LexError::Invalid,
-                };
-                Token::Error(kind)
-            },
-            Token::Integer,
-        )
+        Token::Integer(&self.input[start..i])
     }
 }
 
