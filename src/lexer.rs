@@ -103,20 +103,20 @@ impl<'a> Lexer<'a> {
             '@' if let Some((i, _)) =
                 self.iter.next_if(|&(_, c)| c.is_alphanumeric() || c == '_') =>
             {
-                self.parse_var_or_ident(i, true)
+                self.var_or_ident(i, true)
             }
-            'A'..='Z' | 'a'..='z' | '_' => self.parse_var_or_ident(i, false),
+            'A'..='Z' | 'a'..='z' | '_' => self.var_or_ident(i, false),
 
             // Literals
-            '\'' | '"' => self.parse_string(i + c.len_utf8(), c),
-            '0'..='9' => self.parse_int_or_float(i),
+            '\'' | '"' => self.string(i + c.len_utf8(), c),
+            '0'..='9' => self.int_or_float(i),
 
             // Operators
             '+' => double_char_token!('=', PlusEquals, Plus),
             '-' => match self.iter.next_if(|&(_, c)| c == '=') {
                 Some(_) => MinusEquals,
                 None if self.iter.next_if(|&(_, c)| c.is_ascii_digit()).is_some() => {
-                    self.parse_int_or_float(i)
+                    self.int_or_float(i)
                 }
                 None => Minus,
             },
@@ -171,7 +171,7 @@ impl<'a> Lexer<'a> {
     }
 
     #[inline(always)]
-    fn parse_var_or_ident(&mut self, start: usize, is_var: bool) -> Token<'a> {
+    fn var_or_ident(&mut self, start: usize, is_var: bool) -> Token<'a> {
         let &(j, _) = utils::next_while(&mut self.iter, |&(_, c)| c.is_alphanumeric() || c == '_')
             .unwrap_or(&(self.input.len(), '\0'));
 
@@ -196,7 +196,7 @@ impl<'a> Lexer<'a> {
     }
 
     #[inline(always)]
-    fn parse_string(&mut self, start: usize, delimiter: char) -> Token<'a> {
+    fn string(&mut self, start: usize, delimiter: char) -> Token<'a> {
         if let Some((end, _)) = self.iter.find(|&(_, c)| c == delimiter) {
             Token::String(&self.input[start..end])
         } else {
@@ -205,7 +205,7 @@ impl<'a> Lexer<'a> {
     }
 
     #[inline(always)]
-    fn parse_int_or_float(&mut self, start: usize) -> Token<'a> {
+    fn int_or_float(&mut self, start: usize) -> Token<'a> {
         let &(i, c) = utils::next_while(&mut self.iter, |&(_, c)| c.is_ascii_digit())
             .unwrap_or(&(self.input.len(), '\0'));
 
