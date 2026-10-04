@@ -113,13 +113,7 @@ impl<'a> Lexer<'a> {
 
             // Operators
             '+' => double_char_token!('=', PlusEquals, Plus),
-            '-' => match self.iter.next_if(|&(_, c)| c == '=') {
-                Some(_) => MinusEquals,
-                None if self.iter.next_if(|&(_, c)| c.is_ascii_digit()).is_some() => {
-                    self.int_or_float(i)
-                }
-                None => Minus,
-            },
+            '-' => double_char_token!('=', MinusEquals, Minus),
             '*' => double_char_token!('=', StarEquals, Star),
             '/' => double_char_token!('=', SlashEquals, Slash),
             '.' => double_char_token!('=', DotEquals, Dot),
