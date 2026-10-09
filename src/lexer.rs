@@ -1,4 +1,4 @@
-use std::{fmt::Debug, iter::Peekable, mem, str::CharIndices};
+use core::{fmt::Debug, iter::Peekable, mem, str::CharIndices};
 
 #[derive(Debug, PartialEq)]
 pub enum Token<'a> {
@@ -232,7 +232,7 @@ impl<'a> Iterator for Lexer<'a> {
 }
 
 mod utils {
-    use std::iter::Peekable;
+    use core::iter::Peekable;
 
     #[inline(always)]
     pub fn next_while<I: Iterator>(
