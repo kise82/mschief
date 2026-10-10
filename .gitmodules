@@ -1,0 +1,3 @@
+[submodule "third/FinalScoreMC"]
+	path = third/FinalScoreMC
+	url = https://github.com/PseudoKnight/FinalScoreMC
