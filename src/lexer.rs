@@ -1,8 +1,8 @@
-use core::{fmt::Debug, iter::Peekable, mem, str::CharIndices};
+use core::fmt::Debug;
 
 #[derive(Debug, PartialEq)]
 pub enum Token<'a> {
-    Unknown(char),
+    Unknown(u8),
 
     // Identifiers & keywords
     Var(&'a str),
@@ -68,14 +68,19 @@ pub enum LexError {
 
 pub struct Lexer<'a> {
     input: &'a str,
-    iter: Peekable<CharIndices<'a>>,
+    bytes: &'a [u8],
+    len: usize,
+    cursor: usize,
 }
 
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
+        let bytes = input.as_bytes();
         Self {
             input,
-            iter: input.char_indices().peekable(),
+            bytes,
+            len: bytes.len(),
+            cursor: 0,
         }
     }
 
@@ -85,94 +90,186 @@ impl<'a> Lexer<'a> {
         use Token::*;
 
         macro_rules! double_char_token {
-            ($if:expr, $then:ident, $else:ident) => {
-                if self.iter.next_if(|&(_, c)| c == $if).is_some() {
+            ($if:expr, $then:ident, $else:ident) => {{
+                if (self.cursor + 1) < self.len && self.bytes[self.cursor + 1] == $if {
+                    self.cursor += 2;
                     $then
                 } else {
+                    self.cursor += 1;
                     $else
                 }
-            };
+            }};
         }
 
-        let Some((i, c)) = self.skip_whitespaces_and_comments() else {
-            return Eof;
-        };
+        let c = self.skip_whitespaces_and_comments();
+
+        let start = self.cursor;
+        let bytes = self.bytes;
+        let len = self.len;
+        let mut cur = start;
 
         match c {
             // Identifiers & keywords
-            '@' if let Some((i, _)) =
-                self.iter.next_if(|&(_, c)| c.is_alphanumeric() || c == '_') =>
-            {
-                self.var_or_ident(i, true)
+            b'@' => {
+                cur += 1;
+                while cur < len && (bytes[cur].is_ascii_alphanumeric() || bytes[cur] == b'_') {
+                    cur += 1;
+                }
+
+                self.cursor = cur;
+
+                if (cur - start) > 1 {
+                    Var(&self.input[start + 1..cur])
+                } else {
+                    Unknown(c)
+                }
             }
-            'A'..='Z' | 'a'..='z' | '_' => self.var_or_ident(i, false),
+
+            b'A'..=b'Z' | b'a'..=b'z' | b'_' => {
+                while cur < len && (bytes[cur].is_ascii_alphabetic() || bytes[cur] == b'_') {
+                    cur += 1;
+                }
+
+                self.cursor = cur;
+
+                Self::keyword_or_ident(&self.input[start..cur])
+            }
 
             // Literals
-            '\'' | '"' => self.string(i + c.len_utf8(), c),
-            '0'..='9' => self.int_or_float(i),
+            b'\'' | b'"' => {
+                cur += 1;
+                while cur < len && bytes[cur] != c {
+                    cur += 1;
+                }
+
+                if cur < len && bytes[cur] == c {
+                    self.cursor = cur + 1;
+                    String(&self.input[start + 1..cur])
+                } else {
+                    self.cursor = cur;
+                    Error(LexError::Invalid)
+                }
+            }
+
+            b'0'..=b'9' => {
+                while cur < len && bytes[cur].is_ascii_digit() {
+                    cur += 1;
+                }
+
+                if bytes[cur] == b'.' && ((cur + 1) < len && bytes[cur + 1].is_ascii_digit()) {
+                    cur += 2;
+                    while cur < len && bytes[cur].is_ascii_digit() {
+                        cur += 1;
+                    }
+                    self.cursor = cur;
+                    Float(&self.input[start..cur])
+                } else {
+                    self.cursor = cur;
+                    Integer(&self.input[start..cur])
+                }
+            }
 
             // Operators
-            '+' => double_char_token!('=', PlusEquals, Plus),
-            '-' => double_char_token!('=', MinusEquals, Minus),
-            '*' => double_char_token!('=', StarEquals, Star),
-            '/' => double_char_token!('=', SlashEquals, Slash),
-            '.' => double_char_token!('=', DotEquals, Dot),
-            '=' => double_char_token!('=', EqualsEquals, Equals),
-            '!' => double_char_token!('=', BangEquals, Bang),
-            '<' => double_char_token!('=', LessEquals, Less),
-            '>' => double_char_token!('=', GreaterEquals, Greater),
-            '&' if self.iter.next_if(|&(_, c)| c == '&').is_some() => AmpAmp,
-            '|' if self.iter.next_if(|&(_, c)| c == '|').is_some() => PipePipe,
+            b'+' => double_char_token!(b'=', PlusEquals, Plus),
+            b'-' => double_char_token!(b'=', MinusEquals, Minus),
+            b'*' => double_char_token!(b'=', StarEquals, Star),
+            b'/' => double_char_token!(b'=', SlashEquals, Slash),
+            b'.' => double_char_token!(b'=', DotEquals, Dot),
+            b'=' => double_char_token!(b'=', EqualsEquals, Equals),
+            b'!' => double_char_token!(b'=', BangEquals, Bang),
+            b'<' => double_char_token!(b'=', LessEquals, Less),
+            b'>' => double_char_token!(b'=', GreaterEquals, Greater),
+            b'&' if (cur + 1) < len && bytes[cur + 1] == b'&' => {
+                self.cursor += 2;
+                AmpAmp
+            }
+            b'|' if (cur + 1) < len && bytes[cur + 1] == b'|' => {
+                self.cursor += 2;
+                PipePipe
+            }
 
-            // Markers
-            ',' => Comma,
-            ';' => Semicolon,
-            '(' => LParen,
-            ')' => RParen,
-            '[' => LSquare,
-            ']' => RSquare,
-            '{' => LCurly,
-            '}' => RCurly,
-
-            // Rest
-            _ => Unknown(c),
+            b'\0' => Eof,
+            _ => {
+                self.cursor += 1;
+                match c {
+                    b',' => Comma,
+                    b';' => Semicolon,
+                    b'(' => LParen,
+                    b')' => RParen,
+                    b'[' => LSquare,
+                    b']' => RSquare,
+                    b'{' => LCurly,
+                    b'}' => RCurly,
+                    _ => Unknown(c),
+                }
+            }
         }
     }
 
     // Parsing helpers
 
     #[inline(always)]
-    fn skip_whitespaces_and_comments(&mut self) -> Option<<CharIndices<'_> as Iterator>::Item> {
+    fn skip_whitespaces_and_comments(&mut self) -> u8 {
+        let bytes = self.bytes;
+        let len = self.len;
+        let mut cur = self.cursor;
         loop {
-            let (i, c) = self.iter.find(|&(_, c)| !c.is_ascii_whitespace())?;
+            while cur < len && bytes[cur].is_ascii_whitespace() {
+                cur += 1;
+            }
 
-            match c {
-                '#' => {
-                    let _ = self.iter.find(|&(_, c)| c == '\n');
-                }
-                '/' if self.iter.next_if(|&(_, c)| c == '/').is_some() => {
-                    let _ = self.iter.find(|&(_, c)| c == '\n');
-                }
-                '/' if self.iter.next_if(|&(_, c)| c == '*').is_some() => loop {
-                    let (_, _) = self.iter.find(|&(_, c)| c == '*')?;
-                    if self.iter.next_if(|&(_, c)| c == '/').is_some() {
-                        break;
+            if cur >= len {
+                self.cursor = len;
+                return b'\0';
+            }
+
+            match bytes[cur] {
+                b'#' => {
+                    cur += 1;
+                    while cur < len && bytes[cur] != b'\n' {
+                        cur += 1;
                     }
-                },
-                _ => return Some((i, c)),
+                }
+                b'/' => {
+                    if (cur + 1) < len {
+                        match bytes[cur + 1] {
+                            b'/' => {
+                                cur += 2;
+                                while cur < len && bytes[cur] != b'\n' {
+                                    cur += 1;
+                                }
+                            }
+                            b'*' => {
+                                cur += 2;
+                                while cur + 1 < len {
+                                    if bytes[cur] == b'*' && bytes[cur + 1] == b'/' {
+                                        cur += 2;
+                                        break;
+                                    }
+                                    cur += 1;
+                                }
+                            }
+                            _ => {
+                                self.cursor = cur;
+                                return b'/';
+                            }
+                        }
+                    } else {
+                        self.cursor = cur;
+                        return b'/';
+                    }
+                }
+                c => {
+                    self.cursor = cur;
+                    return c;
+                }
             }
         }
     }
 
     #[inline(always)]
-    fn var_or_ident(&mut self, start: usize, is_var: bool) -> Token<'a> {
-        let &(j, _) = utils::next_while(&mut self.iter, |&(_, c)| c.is_alphanumeric() || c == '_')
-            .unwrap_or(&(self.input.len(), '\0'));
-
-        match &self.input[start..j] {
-            // Variables - anything goes
-            var if is_var => Token::Var(var),
-
+    fn keyword_or_ident(lexeme: &'a str) -> Token<'a> {
+        match lexeme {
             // Keywords
             "break" => Token::Break,
             "continue" => Token::Continue,
@@ -185,38 +282,8 @@ impl<'a> Lexer<'a> {
             "while" => Token::While,
 
             // Identifiers - at last
-            ident => Token::Ident(ident),
+            _ => Token::Ident(lexeme),
         }
-    }
-
-    #[inline(always)]
-    fn string(&mut self, start: usize, delimiter: char) -> Token<'a> {
-        if let Some((end, _)) = self.iter.find(|&(_, c)| c == delimiter) {
-            Token::String(&self.input[start..end])
-        } else {
-            Token::Error(LexError::Invalid)
-        }
-    }
-
-    #[inline(always)]
-    fn int_or_float(&mut self, start: usize) -> Token<'a> {
-        let &(i, c) = utils::next_while(&mut self.iter, |&(_, c)| c.is_ascii_digit())
-            .unwrap_or(&(self.input.len(), '\0'));
-
-        if c == '.' {
-            let mut alt_iter = self.iter.clone();
-            alt_iter.next();
-
-            let &(j, _) = utils::next_while(&mut alt_iter, |&(_, c)| c.is_ascii_digit())
-                .unwrap_or(&(self.input.len(), '\0'));
-
-            if j - i > 1 {
-                let _ = mem::replace(&mut self.iter, alt_iter);
-                return Token::Float(&self.input[start..j]);
-            }
-        }
-
-        Token::Integer(&self.input[start..i])
     }
 }
 
@@ -228,18 +295,5 @@ impl<'a> Iterator for Lexer<'a> {
             Token::Eof => None,
             token => Some(token),
         }
-    }
-}
-
-mod utils {
-    use core::iter::Peekable;
-
-    #[inline(always)]
-    pub fn next_while<I: Iterator>(
-        iter: &mut Peekable<I>,
-        mut predicate: impl FnMut(&I::Item) -> bool,
-    ) -> Option<&I::Item> {
-        while iter.next_if(&mut predicate).is_some() {}
-        iter.peek()
     }
 }
