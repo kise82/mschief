@@ -149,7 +149,7 @@ impl<'a> Lexer<'a> {
                     cur += 1;
                 }
 
-                if cur < len && bytes[cur] == c {
+                if cur < len {
                     self.cursor = cur + 1;
                     String(&self.input[start + 1..cur])
                 } else {
