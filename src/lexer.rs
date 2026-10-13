@@ -163,7 +163,7 @@ impl<'a> Lexer<'a> {
                     cur += 1;
                 }
 
-                if bytes[cur] == b'.' && ((cur + 1) < len && bytes[cur + 1].is_ascii_digit()) {
+                if (cur + 1) < len && bytes[cur] == b'.' && bytes[cur + 1].is_ascii_digit() {
                     cur += 2;
                     while cur < len && bytes[cur].is_ascii_digit() {
                         cur += 1;
