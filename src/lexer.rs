@@ -2,7 +2,7 @@ use core::fmt::Debug;
 
 #[derive(Debug, PartialEq)]
 pub enum Token<'a> {
-    Unknown(u8),
+    Unknown(char),
 
     // Identifiers & keywords
     Var(&'a str),
@@ -89,6 +89,13 @@ impl<'a> Lexer<'a> {
     pub fn next_token(&mut self) -> Token<'a> {
         use Token::*;
 
+        macro_rules! single_char_token {
+            ($tok:ident) => {{
+                self.cursor += 1;
+                $tok
+            }};
+        }
+
         macro_rules! double_char_token {
             ($if:expr, $then:ident, $else:ident) => {{
                 if (self.cursor + 1) < self.len && self.bytes[self.cursor + 1] == $if {
@@ -121,7 +128,7 @@ impl<'a> Lexer<'a> {
                 if (cur - start) > 1 {
                     Var(&self.input[start + 1..cur])
                 } else {
-                    Unknown(c)
+                    Unknown(c as char)
                 }
             }
 
@@ -188,20 +195,24 @@ impl<'a> Lexer<'a> {
                 PipePipe
             }
 
+            // Markers
+            b',' => single_char_token!(Comma),
+            b';' => single_char_token!(Semicolon),
+            b'(' => single_char_token!(LParen),
+            b')' => single_char_token!(RParen),
+            b'[' => single_char_token!(LSquare),
+            b']' => single_char_token!(RSquare),
+            b'{' => single_char_token!(LCurly),
+            b'}' => single_char_token!(RCurly),
+
             b'\0' => Eof,
             _ => {
-                self.cursor += 1;
-                match c {
-                    b',' => Comma,
-                    b';' => Semicolon,
-                    b'(' => LParen,
-                    b')' => RParen,
-                    b'[' => LSquare,
-                    b']' => RSquare,
-                    b'{' => LCurly,
-                    b'}' => RCurly,
-                    _ => Unknown(c),
-                }
+                let c = self.input[start..]
+                    .chars()
+                    .next()
+                    .expect("There should be at least 1 `char` left");
+                self.cursor += c.len_utf8();
+                Unknown(c)
             }
         }
     }
