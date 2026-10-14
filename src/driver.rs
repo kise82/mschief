@@ -19,3 +19,9 @@ impl<'a> Driver<'a> {
         boxed::Box::new_in(item, &self.heap)
     }
 }
+
+impl<'a> Default for Driver<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
