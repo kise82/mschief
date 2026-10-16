@@ -143,20 +143,7 @@ impl<'a> Lexer<'a> {
             }
 
             // Literals
-            b'\'' | b'"' => {
-                cur += 1;
-                while cur < len && bytes[cur] != c {
-                    cur += 1;
-                }
-
-                if cur < len {
-                    self.cursor = cur + 1;
-                    String(&self.input[start + 1..cur])
-                } else {
-                    self.cursor = cur;
-                    Error(LexError::Invalid)
-                }
-            }
+            b'\'' | b'"' => self.string(c),
 
             b'0'..=b'9' => {
                 while cur < len && bytes[cur].is_ascii_digit() {
@@ -287,6 +274,34 @@ impl<'a> Lexer<'a> {
 
             // Identifiers - at last
             _ => Token::Ident(lexeme),
+        }
+    }
+
+    #[inline(always)]
+    pub fn string(&mut self, delimiter: u8) -> Token<'a> {
+        let start = self.cursor;
+        let bytes = self.bytes;
+        let len = self.len;
+        let mut cur = start + 1;
+
+        while cur < len {
+            while cur < len && bytes[cur] != delimiter && bytes[cur] != b'\\' {
+                cur += 1;
+            }
+
+            if cur < len && bytes[cur] == b'\\' {
+                cur += 2;
+            } else {
+                break;
+            }
+        }
+
+        if cur < len {
+            self.cursor = cur + 1;
+            Token::String(&self.input[start + 1..cur])
+        } else {
+            self.cursor = len;
+            Token::Error(LexError::Invalid)
         }
     }
 }
