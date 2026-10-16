@@ -241,35 +241,28 @@ impl<'a> Lexer<'a> {
                         cur += 1;
                     }
                 }
-                b'/' => {
-                    if (cur + 1) < len {
-                        match bytes[cur + 1] {
-                            b'/' => {
-                                cur += 2;
-                                while cur < len && bytes[cur] != b'\n' {
-                                    cur += 1;
-                                }
-                            }
-                            b'*' => {
-                                cur += 2;
-                                while cur + 1 < len {
-                                    if bytes[cur] == b'*' && bytes[cur + 1] == b'/' {
-                                        cur += 2;
-                                        break;
-                                    }
-                                    cur += 1;
-                                }
-                            }
-                            _ => {
-                                self.cursor = cur;
-                                return b'/';
-                            }
+                b'/' => match bytes.get(cur + 1).unwrap_or(&b'\0') {
+                    b'/' => {
+                        cur += 2;
+                        while cur < len && bytes[cur] != b'\n' {
+                            cur += 1;
                         }
-                    } else {
+                    }
+                    b'*' => {
+                        cur += 2;
+                        while cur + 1 < len {
+                            if bytes[cur] == b'*' && bytes[cur + 1] == b'/' {
+                                cur += 2;
+                                break;
+                            }
+                            cur += 1;
+                        }
+                    }
+                    _ => {
                         self.cursor = cur;
                         return b'/';
                     }
-                }
+                },
                 c => {
                     self.cursor = cur;
                     return c;
