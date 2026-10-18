@@ -7,10 +7,13 @@ program
     = expression ;
 
 expression
-    = logical ;
+    = logicalOr ;
 
-logical
-    = equality , { logicalOp , equality } ;
+logicalOr
+    = logicalAnd , { "||" , logicalAnd } ;
+
+logicalAnd
+    = equality , { "&&" , equality } ;
 
 equality
     = relational , { equalityOp , relational } ;

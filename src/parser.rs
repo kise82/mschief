@@ -50,11 +50,12 @@ impl<'a> AstNode<'a> {
 #[inline(always)]
 fn infix_binding_power(token: &Token) -> Option<(u8, u8)> {
     match token {
-        Token::AmpAmp | Token::PipePipe => Some((1, 2)),
-        Token::EqualsEquals | Token::BangEquals => Some((3, 4)),
-        Token::Less | Token::LessEquals | Token::Greater | Token::GreaterEquals => Some((5, 6)),
-        Token::Plus | Token::Minus => Some((7, 8)),
-        Token::Star | Token::Slash => Some((9, 10)),
+        Token::PipePipe => Some((1, 2)),
+        Token::AmpAmp => Some((3, 4)),
+        Token::EqualsEquals | Token::BangEquals => Some((5, 6)),
+        Token::Less | Token::LessEquals | Token::Greater | Token::GreaterEquals => Some((7, 8)),
+        Token::Plus | Token::Minus => Some((9, 10)),
+        Token::Star | Token::Slash => Some((11, 12)),
         _ => None,
     }
 }
@@ -62,7 +63,7 @@ fn infix_binding_power(token: &Token) -> Option<(u8, u8)> {
 #[inline(always)]
 fn prefix_binding_power(token: &Token) -> Option<u8> {
     match token {
-        Token::Plus | Token::Minus => Some(11),
+        Token::Plus | Token::Minus => Some(13),
         _ => None,
     }
 }
@@ -123,7 +124,7 @@ impl<'a> Parser<'a> {
                 }
 
                 op @ Token::Plus | op @ Token::Minus => {
-                    let rbp = prefix_binding_power(&op).unwrap_or(11);
+                    let rbp = prefix_binding_power(&op).unwrap_or(13);
                     let operand = self.parse_expr(rbp);
                     AstNode::new_unary(self.driver, op, operand)
                 }
