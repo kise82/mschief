@@ -86,7 +86,7 @@ impl<'a> Lexer<'a> {
             bytes: input.as_bytes(),
             cursor: 0,
 
-            line: 0,
+            line: 1,
             next_line: 1,
         }
     }
