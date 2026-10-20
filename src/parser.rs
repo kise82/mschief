@@ -55,7 +55,7 @@ fn infix_binding_power(token: &Token) -> Option<(u8, u8)> {
         Token::EqualsEquals | Token::BangEquals => Some((5, 6)),
         Token::Less | Token::LessEquals | Token::Greater | Token::GreaterEquals => Some((7, 8)),
         Token::Plus | Token::Minus => Some((9, 10)),
-        Token::Star | Token::Slash => Some((11, 12)),
+        Token::Star | Token::Slash | Token::Percent => Some((11, 12)),
         _ => None,
     }
 }

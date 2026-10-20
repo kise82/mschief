@@ -32,6 +32,8 @@ pub enum Token<'a> {
     StarEquals,
     Slash,
     SlashEquals,
+    Percent,
+    PercentEquals,
     Dot,
     DotEquals,
     Equals,
@@ -48,6 +50,7 @@ pub enum Token<'a> {
     // Markers
     Comma,
     Semicolon,
+    Colon,
     LParen,
     RParen,
     LSquare,
@@ -168,6 +171,7 @@ impl<'a> Lexer<'a> {
             b'-' => double_char_token!(b'=', MinusEquals, Minus),
             b'*' => double_char_token!(b'=', StarEquals, Star),
             b'/' => double_char_token!(b'=', SlashEquals, Slash),
+            b'%' => double_char_token!(b'=', PercentEquals, Percent),
             b'.' => double_char_token!(b'=', DotEquals, Dot),
             b'=' => double_char_token!(b'=', EqualsEquals, Equals),
             b'!' => double_char_token!(b'=', BangEquals, Bang),
@@ -185,6 +189,7 @@ impl<'a> Lexer<'a> {
             // Markers
             b',' => single_char_token!(Comma),
             b';' => single_char_token!(Semicolon),
+            b':' => single_char_token!(Colon),
             b'(' => single_char_token!(LParen),
             b')' => single_char_token!(RParen),
             b'[' => single_char_token!(LSquare),
