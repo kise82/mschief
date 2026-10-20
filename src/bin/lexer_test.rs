@@ -14,10 +14,7 @@ fn main() {
             process::exit(1);
         };
 
-        let lexer = Lexer::new(&file);
-        for token in lexer {
-            print!("{token:?} ");
-        }
+        debug_lexer(&file);
     } else {
         let mut buffer = String::with_capacity(8_192);
         let mut handle = io::stdin().lock();
@@ -25,11 +22,20 @@ fn main() {
         while let Ok(n) = handle.read_line(&mut buffer)
             && n > 0
         {
-            let lexer = Lexer::new(&buffer);
-            for token in lexer {
-                print!("{token:?} ");
-            }
+            debug_lexer(&buffer);
             buffer.clear();
         }
+    }
+}
+
+fn debug_lexer(input: &str) {
+    let mut lexer = Lexer::new(input);
+    let mut line = lexer.line();
+    while let Some(token) = lexer.next() {
+        if line != lexer.line() {
+            line = lexer.line();
+            print!("\n{line:4}");
+        }
+        print!(" {token:?}");
     }
 }
