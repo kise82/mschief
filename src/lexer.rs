@@ -79,6 +79,7 @@ pub struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
+    /// Creates a new `Lexer` to process `input`.
     pub fn new(input: &'a str) -> Self {
         Self {
             input,
@@ -90,12 +91,14 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    /// Returns the line in which the last `Token` started.
     pub const fn line(&self) -> usize {
         self.line
     }
 
     // Lexing
 
+    /// Lex the next available `Token` of the input, if any.
     pub fn next_token(&mut self) -> Token<'a> {
         use Token::*;
 

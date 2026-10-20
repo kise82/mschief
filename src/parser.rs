@@ -74,6 +74,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
+    /// Creates a new `Parser` to process `input` in behalf of `driver`.
     pub fn new(driver: &'a Driver<'a>, input: &'a str) -> Self {
         Self {
             driver,
@@ -81,13 +82,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn from_lexer(driver: &'a Driver<'a>, lexer: Lexer<'a>) -> Self {
-        Self {
-            driver,
-            lexer: lexer.peekable(),
-        }
-    }
-
+    /// Returns the AST for the input.
     pub fn parse(&mut self) -> Box<'a, AstNode<'a>> {
         self.program()
     }
