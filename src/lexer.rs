@@ -73,6 +73,9 @@ pub struct Lexer<'a> {
     input: &'a str,
     bytes: &'a [u8],
     cursor: usize,
+
+    line: usize,
+    next_line: usize,
 }
 
 impl<'a> Lexer<'a> {
@@ -81,7 +84,14 @@ impl<'a> Lexer<'a> {
             input,
             bytes: input.as_bytes(),
             cursor: 0,
+
+            line: 0,
+            next_line: 1,
         }
+    }
+
+    pub const fn line(&self) -> usize {
+        self.line
     }
 
     // Lexing
@@ -109,6 +119,8 @@ impl<'a> Lexer<'a> {
         }
 
         let c = self.skip_whitespaces_and_comments();
+
+        self.line = self.next_line;
 
         let start = self.cursor;
         let bytes = self.bytes;
@@ -213,13 +225,18 @@ impl<'a> Lexer<'a> {
         let bytes = self.bytes;
         let len = bytes.len();
         let mut cur = self.cursor;
+        let mut line = self.next_line;
         loop {
             while cur < len && bytes[cur].is_ascii_whitespace() {
+                if bytes[cur] == b'\n' {
+                    line += 1;
+                }
                 cur += 1;
             }
 
             if cur >= len {
                 self.cursor = len;
+                self.next_line = line;
                 return b'\0';
             }
 
@@ -243,17 +260,21 @@ impl<'a> Lexer<'a> {
                             if bytes[cur] == b'*' && bytes[cur + 1] == b'/' {
                                 cur += 2;
                                 break;
+                            } else if bytes[cur] == b'\n' {
+                                line += 1;
                             }
                             cur += 1;
                         }
                     }
                     _ => {
                         self.cursor = cur;
+                        self.next_line = line;
                         return b'/';
                     }
                 },
                 c => {
                     self.cursor = cur;
+                    self.next_line = line;
                     return c;
                 }
             }
@@ -285,14 +306,22 @@ impl<'a> Lexer<'a> {
         let bytes = self.bytes;
         let len = bytes.len();
         let mut cur = start + 1;
+        let mut line = self.next_line;
 
         while cur < len {
             match bytes[cur] {
                 b'\\' => cur += 2,
                 c if c == delimiter => break,
-                _ => cur += 1,
+                c => {
+                    if c == b'\n' {
+                        line += 1;
+                    }
+                    cur += 1;
+                }
             }
         }
+
+        self.next_line = line;
 
         if cur < len {
             self.cursor = cur + 1;
