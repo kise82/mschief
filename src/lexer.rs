@@ -72,17 +72,14 @@ pub enum LexError {
 pub struct Lexer<'a> {
     input: &'a str,
     bytes: &'a [u8],
-    len: usize,
     cursor: usize,
 }
 
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
-        let bytes = input.as_bytes();
         Self {
             input,
-            bytes,
-            len: bytes.len(),
+            bytes: input.as_bytes(),
             cursor: 0,
         }
     }
@@ -101,7 +98,7 @@ impl<'a> Lexer<'a> {
 
         macro_rules! double_char_token {
             ($if:expr, $then:ident, $else:ident) => {{
-                if (self.cursor + 1) < self.len && self.bytes[self.cursor + 1] == $if {
+                if (self.cursor + 1) < self.bytes.len() && self.bytes[self.cursor + 1] == $if {
                     self.cursor += 2;
                     $then
                 } else {
@@ -115,7 +112,7 @@ impl<'a> Lexer<'a> {
 
         let start = self.cursor;
         let bytes = self.bytes;
-        let len = self.len;
+        let len = bytes.len();
         let mut cur = start;
 
         match c {
@@ -214,7 +211,7 @@ impl<'a> Lexer<'a> {
     #[inline(always)]
     fn skip_whitespaces_and_comments(&mut self) -> u8 {
         let bytes = self.bytes;
-        let len = self.len;
+        let len = bytes.len();
         let mut cur = self.cursor;
         loop {
             while cur < len && bytes[cur].is_ascii_whitespace() {
@@ -286,18 +283,14 @@ impl<'a> Lexer<'a> {
     pub fn string(&mut self, delimiter: u8) -> Token<'a> {
         let start = self.cursor;
         let bytes = self.bytes;
-        let len = self.len;
+        let len = bytes.len();
         let mut cur = start + 1;
 
         while cur < len {
-            while cur < len && bytes[cur] != delimiter && bytes[cur] != b'\\' {
-                cur += 1;
-            }
-
-            if cur < len && bytes[cur] == b'\\' {
-                cur += 2;
-            } else {
-                break;
+            match bytes[cur] {
+                b'\\' => cur += 2,
+                c if c == delimiter => break,
+                _ => cur += 1,
             }
         }
 
