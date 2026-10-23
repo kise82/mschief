@@ -1,13 +1,9 @@
+use crate::error::LexError;
+
 use core::fmt::Debug;
 
-#[derive(Debug, PartialEq)]
-pub enum LexError {
-    Invalid,
-    IntOverflow,
-}
-
 #[repr(C)]
-#[derive(PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Token<'a> {
     Eof,
 
@@ -66,7 +62,6 @@ pub enum Token<'a> {
     RCurly,
 
     // Meta
-    Unknown(char),
     Error(LexError),
 }
 
@@ -74,6 +69,7 @@ impl<'a> Debug for Token<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Eof => write!(f, "EOF"),
+
             Self::Var(var) => write!(f, "@{var}"),
             Self::Ident(ident) => write!(f, "{ident}"),
             Self::Break => write!(f, "break"),
@@ -85,9 +81,11 @@ impl<'a> Debug for Token<'a> {
             Self::Return => write!(f, "return"),
             Self::True => write!(f, "true"),
             Self::While => write!(f, "while"),
+
             Self::String(str) => write!(f, "'{str}'"),
             Self::Integer(int) => write!(f, "{int}"),
             Self::Float(float) => write!(f, "{float}"),
+
             Self::Plus => write!(f, "+"),
             Self::PlusEquals => write!(f, "+="),
             Self::Minus => write!(f, "-"),
@@ -109,7 +107,8 @@ impl<'a> Debug for Token<'a> {
             Self::Greater => write!(f, ">"),
             Self::GreaterEquals => write!(f, ">="),
             Self::AmpAmp => write!(f, "&&"),
-            Self::PipePipe => write!(f, "|"),
+            Self::PipePipe => write!(f, "||"),
+
             Self::Comma => write!(f, ","),
             Self::Semicolon => write!(f, ";"),
             Self::Colon => write!(f, ":"),
@@ -119,8 +118,8 @@ impl<'a> Debug for Token<'a> {
             Self::RSquare => write!(f, "]"),
             Self::LCurly => write!(f, "{{"),
             Self::RCurly => write!(f, "}}"),
-            Self::Unknown(char) => f.debug_tuple("UNKNOWN").field(char).finish(),
-            Self::Error(error) => f.debug_tuple("ERROR").field(error).finish(),
+
+            Self::Error(err) => f.debug_tuple("ERROR").field(err).finish(),
         }
     }
 }

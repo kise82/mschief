@@ -3,11 +3,13 @@ use core::iter::Peekable;
 use bumpalo::boxed::Box;
 
 use crate::driver::Driver;
-use crate::lexer::{Lexer, Token};
+use crate::error::ParseError;
+use crate::lexer::Lexer;
+use crate::tokens::Token;
 
 #[derive(Debug, PartialEq)]
 pub enum AstNode<'a> {
-    Error,
+    Error(ParseError<'a>),
     Literal(Token<'a>),
     Unary {
         op: Token<'a>,
@@ -42,29 +44,43 @@ impl<'a> AstNode<'a> {
         driver.alloc(Self::Binary { op, lhs, rhs })
     }
 
-    pub fn new_error(driver: &'a Driver<'a>) -> Box<'a, Self> {
-        driver.alloc(Self::Error)
+    pub fn new_error(driver: &'a Driver<'a>, error: ParseError<'a>) -> Box<'a, Self> {
+        driver.alloc(Self::Error(error))
     }
-}
 
-#[inline(always)]
-fn infix_binding_power(token: &Token) -> Option<(u8, u8)> {
-    match token {
-        Token::PipePipe => Some((1, 2)),
-        Token::AmpAmp => Some((3, 4)),
-        Token::EqualsEquals | Token::BangEquals => Some((5, 6)),
-        Token::Less | Token::LessEquals | Token::Greater | Token::GreaterEquals => Some((7, 8)),
-        Token::Plus | Token::Minus => Some((9, 10)),
-        Token::Star | Token::Slash | Token::Percent => Some((11, 12)),
-        _ => None,
+    pub fn first_error(&self) -> Option<&ParseError<'a>> {
+        match self {
+            Self::Error(err) => Some(err),
+            Self::Unary { operand, .. } => operand.first_error(),
+            Self::Binary { lhs, rhs, .. } => lhs.first_error().or_else(|| rhs.first_error()),
+            Self::Literal(_) => None,
+        }
     }
-}
 
-#[inline(always)]
-fn prefix_binding_power(token: &Token) -> Option<u8> {
-    match token {
-        Token::Plus | Token::Minus => Some(13),
-        _ => None,
+    pub fn has_error(&self) -> bool {
+        self.first_error().is_some()
+    }
+
+    pub fn for_each_error<F>(&self, mut f: F)
+    where
+        F: FnMut(&ParseError<'a>),
+    {
+        self.walk_errors(&mut f);
+    }
+
+    fn walk_errors<F>(&self, f: &mut F)
+    where
+        F: FnMut(&ParseError<'a>),
+    {
+        match self {
+            Self::Error(err) => f(err),
+            Self::Literal(_) => {}
+            Self::Unary { operand, .. } => operand.walk_errors(f),
+            Self::Binary { lhs, rhs, .. } => {
+                lhs.walk_errors(f);
+                rhs.walk_errors(f);
+            }
+        }
     }
 }
 
@@ -111,30 +127,44 @@ impl<'a> Parser<'a> {
 
                 Token::LParen => {
                     let inner = self.parse_expr(0);
-                    if let Some(Token::RParen) = self.lexer.next() {
+                    if inner.has_error() {
+                        if let Some(Token::RParen) = self.lexer.peek() {
+                            let _ = self.lexer.next();
+                        }
                         inner
                     } else {
-                        AstNode::new_error(self.driver)
+                        match self.lexer.next() {
+                            Some(Token::RParen) => inner,
+                            other => AstNode::new_error(
+                                self.driver,
+                                ParseError::unexpected(")", other.unwrap_or(Token::Eof)),
+                            ),
+                        }
                     }
                 }
 
                 op @ Token::Plus | op @ Token::Minus => {
-                    let rbp = prefix_binding_power(&op).unwrap_or(13);
+                    let rbp = attrs::prefix_binding_power(&op).unwrap_or(13);
                     let operand = self.parse_expr(rbp);
                     AstNode::new_unary(self.driver, op, operand)
                 }
 
-                _ => AstNode::new_error(self.driver),
+                other => {
+                    AstNode::new_error(self.driver, ParseError::unexpected("expression", other))
+                }
             },
-            None => AstNode::new_error(self.driver),
+            None => AstNode::new_error(
+                self.driver,
+                ParseError::unexpected("expression", Token::Eof),
+            ),
         };
 
-        if matches!(*lhs, AstNode::Error) {
+        if lhs.has_error() {
             return lhs;
         }
 
         while let Some(op) = self.lexer.peek() {
-            let rbp = match infix_binding_power(op) {
+            let rbp = match attrs::infix_binding_power(op) {
                 Some((lbp, rbp)) => {
                     if lbp < min_bp {
                         break;
@@ -146,7 +176,7 @@ impl<'a> Parser<'a> {
 
             let op_token = self.lexer.next().unwrap();
             let rhs = self.parse_expr(rbp);
-            let rhs_is_error = matches!(*rhs, AstNode::Error);
+            let rhs_is_error = rhs.has_error();
             lhs = AstNode::new_binary(self.driver, op_token, lhs, rhs);
             if rhs_is_error {
                 break;
@@ -154,5 +184,30 @@ impl<'a> Parser<'a> {
         }
 
         lhs
+    }
+}
+
+mod attrs {
+    use super::Token;
+
+    #[inline(always)]
+    pub fn infix_binding_power(token: &Token) -> Option<(u8, u8)> {
+        match token {
+            Token::PipePipe => Some((1, 2)),
+            Token::AmpAmp => Some((3, 4)),
+            Token::EqualsEquals | Token::BangEquals => Some((5, 6)),
+            Token::Less | Token::LessEquals | Token::Greater | Token::GreaterEquals => Some((7, 8)),
+            Token::Plus | Token::Minus => Some((9, 10)),
+            Token::Star | Token::Slash | Token::Percent => Some((11, 12)),
+            _ => None,
+        }
+    }
+
+    #[inline(always)]
+    pub fn prefix_binding_power(token: &Token) -> Option<u8> {
+        match token {
+            Token::Plus | Token::Minus => Some(13),
+            _ => None,
+        }
     }
 }

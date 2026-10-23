@@ -1,4 +1,5 @@
-pub use crate::tokens::{LexError, Token};
+use crate::error::{LexError, LexErrorKind};
+use crate::tokens::Token;
 
 pub struct Lexer<'a> {
     input: &'a str,
@@ -74,7 +75,10 @@ impl<'a> Lexer<'a> {
                 if (cur - start) > 1 {
                     Var(&self.input[start + 1..cur])
                 } else {
-                    Unknown(c as char)
+                    Error(LexError::new(
+                        self.line(),
+                        LexErrorKind::UnexpectedChar(c as char),
+                    ))
                 }
             }
 
@@ -105,7 +109,11 @@ impl<'a> Lexer<'a> {
                     Float(&self.input[start..cur])
                 } else {
                     self.cursor = cur;
-                    Integer(&self.input[start..cur])
+                    if cur - start < 20 {
+                        Integer(&self.input[start..cur])
+                    } else {
+                        Error(LexError::new(self.line(), LexErrorKind::IntOverflow))
+                    }
                 }
             }
 
@@ -147,7 +155,7 @@ impl<'a> Lexer<'a> {
                     .next()
                     .expect("There should be at least 1 `char` left");
                 self.cursor += c.len_utf8();
-                Unknown(c)
+                Error(LexError::new(self.line(), LexErrorKind::UnexpectedChar(c)))
             }
         }
     }
@@ -262,7 +270,7 @@ impl<'a> Lexer<'a> {
             Token::String(&self.input[start + 1..cur])
         } else {
             self.cursor = len;
-            Token::Error(LexError::Invalid)
+            Token::Error(LexError::new(self.line, LexErrorKind::UnterminatedString))
         }
     }
 }
