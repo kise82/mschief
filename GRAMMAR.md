@@ -73,6 +73,7 @@ termOp
 factorOp
     = "*"
     | "/"
+    | "%"
     ;
 
 prefixOp
