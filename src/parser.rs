@@ -7,7 +7,7 @@ use crate::error::ParseError;
 use crate::lexer::Lexer;
 use crate::tokens::Token;
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub enum AstNode<'a> {
     Error(ParseError<'a>),
     Literal(Token<'a>),
